@@ -84,13 +84,9 @@
     const gltfLoader = new GLTFLoader();
     gltfLoader.setDRACOLoader(dracoLoader);
 
-    gltfLoader.load('./modelo.glb', (gltf) => {
-      model = gltf.scene;
-      model.visible = false;
-      scene.add(model);
-    }, undefined, (error) => {
-      console.error('Error al cargar GLB:', error);
-    });
+    gltfLoader.loadAsync('./modelo.glb').then(res=>{
+        scene.add(res.scene.children[0]);
+    })
 
     renderer.xr.addEventListener('sessionstart', () => {
       if (model) {
