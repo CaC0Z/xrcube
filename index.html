@@ -21,8 +21,8 @@
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x202020);
 
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
-    camera.position.z = 3;
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 10000);
+    camera.position.z = 10;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -91,7 +91,7 @@
     renderer.xr.addEventListener('sessionstart', () => {
       if (model) {
         const xrCamera = renderer.xr.getCamera(camera);
-        const offset = new THREE.Vector3(0, 0, -2); // 2 metros adelante
+        const offset = new THREE.Vector3(0, 0, -10); // 2 metros adelante
         offset.applyQuaternion(xrCamera.quaternion);
         offset.add(xrCamera.position);
         model.position.copy(offset);
