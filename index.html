@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Three.js XR Cubo</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+  <script type="module">
+    import * as THREE from './threejs/build/three.module.js';
+    import { OrbitControls } from './threejs/examples/jsm/controls/OrbitControls.js';
+    import { XRButton } from './threejs/examples/jsm/webxr/XRButton.js';
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x202020);
+
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.z = 3;
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.xr.enabled = true;
+    document.body.appendChild(renderer.domElement);
+
+    // Botón para entrar en modo VR
+    document.body.appendChild(XRButton.createButton(renderer));
+
+    const geometry = new THREE.BoxGeometry();
+    const material = new THREE.MeshStandardMaterial({ color: 0x44aa88 });
+    const cube = new THREE.Mesh(geometry, material);
+    scene.add(cube);
+
+    // Luz
+    const light = new THREE.HemisphereLight(0xffffff, 0x444444);
+    light.position.set(0, 1, 0);
+    scene.add(light);
+
+    // Controles para desktop
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.enablePan = true;
+
+    // Movimiento del cubo con teclado
+    const keyState = {};
+    document.addEventListener('keydown', (e) => keyState[e.code] = true);
+    document.addEventListener('keyup', (e) => keyState[e.code] = false);
+
+    function animate() {
+      controls.update();
+
+      // Movimiento con teclas
+      if (keyState['ArrowUp']) cube.position.z -= 0.05;
+      if (keyState['ArrowDown']) cube.position.z += 0.05;
+      if (keyState['ArrowLeft']) cube.position.x -= 0.05;
+      if (keyState['ArrowRight']) cube.position.x += 0.05;
+
+      // Rotación continua
+      cube.rotation.x += 0.01;
+      cube.rotation.y += 0.01;
+
+      renderer.render(scene, camera);
+    }
+
+    renderer.setAnimationLoop(animate);
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
+
