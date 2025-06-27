@@ -14,6 +14,7 @@
     import * as THREE from './threejs/build/three.module.js';
     import { OrbitControls } from './threejs/examples/jsm/controls/OrbitControls.js';
     import { XRButton } from './threejs/examples/jsm/webxr/XRButton.js';
+    import { XRControllerModelFactory } from './threejs/examples/jsm/webxr/XRControllerModelFactory.js';
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x202020);
@@ -34,6 +35,14 @@
     const cube = new THREE.Mesh(geometry, material);
     scene.add(cube);
 
+    // Plano para que el rayo colisione
+    const floor = new THREE.Mesh(
+      new THREE.PlaneGeometry(10, 10),
+      new THREE.MeshStandardMaterial({ color: 0x111111, side: THREE.DoubleSide })
+    );
+    floor.rotation.x = -Math.PI / 2;
+    scene.add(floor);
+
     // Luz
     const light = new THREE.HemisphereLight(0xffffff, 0x444444);
     light.position.set(0, 1, 0);
@@ -50,6 +59,29 @@
     document.addEventListener('keydown', (e) => keyState[e.code] = true);
     document.addEventListener('keyup', (e) => keyState[e.code] = false);
 
+    // Controladores XR
+    const controller1 = renderer.xr.getController(0);
+    scene.add(controller1);
+
+    const controllerModelFactory = new XRControllerModelFactory();
+    const controllerGrip1 = renderer.xr.getControllerGrip(0);
+    controllerGrip1.add(controllerModelFactory.createControllerModel(controllerGrip1));
+    scene.add(controllerGrip1);
+
+    const raycaster = new THREE.Raycaster();
+    const tempMatrix = new THREE.Matrix4();
+
+    controller1.addEventListener('selectstart', () => {
+      tempMatrix.identity().extractRotation(controller1.matrixWorld);
+      raycaster.ray.origin.setFromMatrixPosition(controller1.matrixWorld);
+      raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+
+      const intersects = raycaster.intersectObject(floor);
+      if (intersects.length > 0) {
+        cube.position.copy(intersects[0].point);
+      }
+    });
+
     function animate() {
       controls.update();
 
@@ -59,14 +91,20 @@
       if (keyState['ArrowLeft']) cube.position.x -= 0.05;
       if (keyState['ArrowRight']) cube.position.x += 0.05;
 
-      // Rotación continua
-      cube.rotation.x += 0.01;
-      cube.rotation.y += 0.01;
 
       renderer.render(scene, camera);
     }
 
     renderer.setAnimationLoop(animate);
+
+    // Ajustar la posición del cubo al iniciar XR
+    renderer.xr.addEventListener('sessionstart', () => {
+      const xrCamera = renderer.xr.getCamera(camera);
+      const offset = new THREE.Vector3(0, 0, -2); // 2 metros adelante
+      offset.applyQuaternion(xrCamera.quaternion);
+      offset.add(xrCamera.position);
+      cube.position.copy(offset);
+    });
 
     window.addEventListener('resize', () => {
       camera.aspect = window.innerWidth / window.innerHeight;
