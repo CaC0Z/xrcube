@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Three.js XR Cubo</title>
+  <title>Three.js XR Modelo</title>
   <style>
     body { margin: 0; overflow: hidden; }
     canvas { display: block; }
@@ -15,6 +15,8 @@
     import { OrbitControls } from './threejs/examples/jsm/controls/OrbitControls.js';
     import { XRButton } from './threejs/examples/jsm/webxr/XRButton.js';
     import { XRControllerModelFactory } from './threejs/examples/jsm/webxr/XRControllerModelFactory.js';
+    import { GLTFLoader } from './threejs/examples/jsm/loaders/GLTFLoader.js';
+    import { DRACOLoader } from './threejs/examples/jsm/loaders/DRACOLoader.js';
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x202020);
@@ -29,11 +31,6 @@
 
     // Botón para entrar en modo VR
     document.body.appendChild(XRButton.createButton(renderer));
-
-    const geometry = new THREE.BoxGeometry();
-    const material = new THREE.MeshStandardMaterial({ color: 0x44aa88 });
-    const cube = new THREE.Mesh(geometry, material);
-    scene.add(cube);
 
     // Plano para que el rayo colisione
     const floor = new THREE.Mesh(
@@ -54,11 +51,6 @@
     controls.dampingFactor = 0.05;
     controls.enablePan = true;
 
-    // Movimiento del cubo con teclado
-    const keyState = {};
-    document.addEventListener('keydown', (e) => keyState[e.code] = true);
-    document.addEventListener('keyup', (e) => keyState[e.code] = false);
-
     // Controladores XR
     const controller1 = renderer.xr.getController(0);
     scene.add(controller1);
@@ -71,40 +63,52 @@
     const raycaster = new THREE.Raycaster();
     const tempMatrix = new THREE.Matrix4();
 
+    let model;
+
     controller1.addEventListener('selectstart', () => {
+      if (!model) return;
       tempMatrix.identity().extractRotation(controller1.matrixWorld);
       raycaster.ray.origin.setFromMatrixPosition(controller1.matrixWorld);
       raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
 
       const intersects = raycaster.intersectObject(floor);
       if (intersects.length > 0) {
-        cube.position.copy(intersects[0].point);
+        model.position.copy(intersects[0].point);
+      }
+    });
+
+    // Cargar modelo GLB con DRACO
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath('./threejs/examples/jsm/libs/draco/');
+
+    const gltfLoader = new GLTFLoader();
+    gltfLoader.setDRACOLoader(dracoLoader);
+
+    gltfLoader.load('./modelo.glb', (gltf) => {
+      model = gltf.scene;
+      model.visible = false;
+      scene.add(model);
+    }, undefined, (error) => {
+      console.error('Error al cargar GLB:', error);
+    });
+
+    renderer.xr.addEventListener('sessionstart', () => {
+      if (model) {
+        const xrCamera = renderer.xr.getCamera(camera);
+        const offset = new THREE.Vector3(0, 0, -2); // 2 metros adelante
+        offset.applyQuaternion(xrCamera.quaternion);
+        offset.add(xrCamera.position);
+        model.position.copy(offset);
+        model.visible = true;
       }
     });
 
     function animate() {
       controls.update();
-
-      // Movimiento con teclas
-      if (keyState['ArrowUp']) cube.position.z -= 0.05;
-      if (keyState['ArrowDown']) cube.position.z += 0.05;
-      if (keyState['ArrowLeft']) cube.position.x -= 0.05;
-      if (keyState['ArrowRight']) cube.position.x += 0.05;
-
-
       renderer.render(scene, camera);
     }
 
     renderer.setAnimationLoop(animate);
-
-    // Ajustar la posición del cubo al iniciar XR
-    renderer.xr.addEventListener('sessionstart', () => {
-      const xrCamera = renderer.xr.getCamera(camera);
-      const offset = new THREE.Vector3(0, 0, -2); // 2 metros adelante
-      offset.applyQuaternion(xrCamera.quaternion);
-      offset.add(xrCamera.position);
-      cube.position.copy(offset);
-    });
 
     window.addEventListener('resize', () => {
       camera.aspect = window.innerWidth / window.innerHeight;
